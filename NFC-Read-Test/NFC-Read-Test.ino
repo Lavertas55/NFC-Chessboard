@@ -12,89 +12,83 @@
  * 3.3V     3.3V
 */
 
-#include <MFRC522.h>
 #include <SPI.h>
+#include <MFRC522.h>
 
 #define RST_PIN 5
-#define SS_PIN 45
+#define SS_PIN 53
 
 MFRC522 mfrc522(SS_PIN, RST_PIN); // Create MFRC522 instance
 
-MFRC522::MIFARE_Key key;
-
-void setup(){
-    Serial.begin(9600);
-    while(!Serial);
- 
-    SPI.begin();
-    mfrc522.PCD_Init();
-
-    for (byte 1 = 0; i < 6; i++) {
-        key.keyByte[i] = 0xFF;
-    }
-
-    Serial.println(F("Initialized"));
-    Serial.print(F("Using key (for A and B): "));
-    dump_byte_array(key.keyByte, MFRC522::MF_KEY_SIZE);
-    Serial.println(F("Waiting for tag..."));
+void setup() {
+  // Initialize
+  Serial.begin(9600);
+  SPI.begin();
+  mfrc522.PCD_Init();
+  Serial.println(F("Read code off of nfc tag:"));
 }
 
 void loop() {
-    // Reset loop if no new card is present
-    if (!mfrc522.PICC_IsNewCardPresent())
-        return;
-    
-    // select one of the cards
-    if (!mfrc522.PICC_ReadCardSerial())
-        return;
+  // Prepare Key
+  MFRC522::MIFARE_Key key;
+  for (byte i = 0; i < 6; i++) key.keyByte[i] = 0xFF;
 
-    Serial.print(F("Card UID:"));
-    dump_byte_array(mfrc522.uid.uidByte, mfrc522.uid.size);
-    Serial.println();
+  byte block;
+  byte len;
+  MFRC522::StatusCode status;
+
+  // Reset loop if no new card is present on reader
+  if (! mfrc522.PICC_IsNewCardPresent()) {
+    return;
+  }
+
+  // Select one of the cards
+  if (! mfrc522.PICC_ReadCardSerial()) {
+    return;
+  }
+
+  Serial.println(F("**Card Detected:**"));
+
+  mfrc522.PICC_DumpDetailsToSerial(&(mfrc522.uid));  //dump some details about the card
+
+  //mfrc522.PICC_DumpToSerial(&(mfrc522.uid));       //uncomment this to see all blocks in hex
+
+  Serial.print(F("Name: "));
+
+  byte buffer1[18];
+  String code;
+
+  block = 4;
+  len = 18;
 
 
-    //check for compatibility
-    if (    piccType != MFRC522::PICC_TYPE_MIFARE_MINI
-        &&  piccType != MFRC522::PICC_TYPE_MIFARE_1K
-        &&  piccType != MFRC522::PICC_TYPE_MIFARE_4K) {
-        Serial.println(F("ERROR: Not a MIFARE Classic Card."));
-        return;
+  status = mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, 4, &key, &(mfrc522.uid));
+
+  if (status != MFRC522::STATUS_OK) {
+    Serial.print(F("Authentication failed: "));
+    Serial.println(mfrc522.GetStatusCodeName(status));
+    return;
+  }
+
+  status = mfrc522.MIFARE_Read(block, buffer1, &len);
+  if (status != MFRC522::STATUS_OK) {
+    Serial.print(F("Reading failed: "));
+    Serial.println(mfrc522.GetStatusCodeName(status));
+    return;
+  }
+  
+  for (uint8_t i = 0; i < 16; i++) {
+    if (buffer1[i] != 32) {
+      Serial.write(buffer1[i]);
     }
+  }
+  Serial.print(" ");
+  Serial.println(code);
+  
+  Serial.println(F("\n**End Reading**\n"));
 
-    byte sector = 1;
-    byte blockAddr = 4;
-    byte dataBlock[] = {
-        0x01, 0x02, 0x03, 0x04,
-        0x05, 0x06, 0x07, 0x08,
-        0x09, 0x0a, 0xff, 0x0b,
-        0x0c, 0x0d, 0x0e, 0x0f
-    };
-    byte trailerBlock = 7;
-    MFRC522::StatusCode status;
-    byte buffer[18];
-    byte size = sizeof(buffer);
+  delay(1000);
 
-    //authenticate using key A
-    Serial.println(F("Authenticating using key A..."));
-    status = (MFRC522::StatusCode) mfrc522.PCD_Authenticate(MFRC522::PICC_CMD_MF_AUTH_KEY_A, trailerBlock, &key, &(mfrc522.uid));
-    if (status != MFRC522::STATUS_OK) {
-        Serial.print(F("PCD_Authenticate() failed: "));
-        Serial.println(mfrc522.GetStatusCodeName(status));
-        return;
-    }
-
-    //read data from block
-    Serial.print(F("Reading code from block ")); Serial.print(blockAddr);
-    Serial.println(F(" ..."));
-    status = (MFRC522::StatusCode) mfrc522.MIFARE_Read(blockAddr, buffer, &size);
-    if (status != MFRC522::STATUS_OK) {
-        Serial.print(F("MIFARE_Read() failed: "));
-        Serial.println(mfrc522.GetStatusCodeName(status));
-    }    
-    Serial.print(F("Code in block ")); Serial.print(blockAddr); Serial.println(F(":"));
-    dump_byte_array(buffer, 16); Serial.println();
-    Serial.println();
-
-    // Authenticate using key B
-    Serial.println(F("Authenticating again using"))
+  mfrc522.PICC_HaltA();
+  mfrc522.PCD_StopCrypto1();
 }
