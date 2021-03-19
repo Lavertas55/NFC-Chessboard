@@ -12,11 +12,20 @@
  * 3.3V     3.3V
 */
 
+/*
+ * CARD UID REFERENCE
+ * BP1 = DB B5 B7 1C
+ * WQ = 9A 3D 67 15
+ */
+
 #include <SPI.h>
 #include <MFRC522.h>
 
 #define RST_PIN 5
 #define SS_PIN 53
+
+#define G_LED_PIN 24
+#define R_LED_PIN 22
 
 MFRC522 mfrc522(SS_PIN, RST_PIN); // Create MFRC522 instance
 
@@ -25,6 +34,10 @@ void setup() {
   Serial.begin(9600);
   SPI.begin();
   mfrc522.PCD_Init();
+
+  pinMode(G_LED_PIN, OUTPUT);
+  pinMode(R_LED_PIN, OUTPUT);
+  
   Serial.println(F("Read code off of nfc tag:"));
 }
 
@@ -53,8 +66,6 @@ void loop() {
 
   //mfrc522.PICC_DumpToSerial(&(mfrc522.uid));       //uncomment this to see all blocks in hex
 
-  Serial.print(F("Name: "));
-
   byte buffer1[18];
   String code;
 
@@ -70,24 +81,43 @@ void loop() {
     return;
   }
 
-  status = mfrc522.MIFARE_Read(block, buffer1, &len);
-  if (status != MFRC522::STATUS_OK) {
-    Serial.print(F("Reading failed: "));
-    Serial.println(mfrc522.GetStatusCodeName(status));
-    return;
-  }
-  
-  for (uint8_t i = 0; i < 16; i++) {
-    if (buffer1[i] != 32) {
-      Serial.write(buffer1[i]);
-    }
-  }
-  Serial.print(" ");
-  Serial.println(code);
-  
-  Serial.println(F("\n**End Reading**\n"));
+  Serial.print("UID tag :");
+  String content = "";
 
-  delay(1000);
+  for (byte i = 0; i < mfrc522.uid.size; i++) {
+    Serial.print(mfrc522.uid.uidByte[i] < 0x10 ? " 0" : " ");
+    Serial.print(mfrc522.uid.uidByte[i], HEX);
+    content.concat(String(mfrc522.uid.uidByte[i] < 0x10 ? " 0" : " "));
+    content.concat(String(mfrc522.uid.uidByte[i], HEX));
+  }
+
+  Serial.println();
+  Serial.print("Message: ");
+  content.toUpperCase();
+
+  if (content.substring(1) == "DB B5 B7 1C") {
+    Serial.println("Black Pawn 1 - Present");
+    digitalWrite(G_LED_PIN, HIGH);
+    Serial.println();
+    delay(3000);
+    digitalWrite(G_LED_PIN, LOW);
+  }
+
+  else if (content.substring(1) == "9A 3D 67 15") {
+    Serial.println("White Queen - Present");
+    digitalWrite(G_LED_PIN, HIGH);
+    Serial.println();
+    delay(3000);
+    digitalWrite(R_LED_PIN, LOW);
+  }
+
+  else {
+    Serial.println("Piece Not Recognized");
+    digitalWrite(R_LED_PIN, HIGH);
+    Serial.println();
+    delay (3000); 
+    digitalWrite(R_LED_PIN, LOW);
+  }
 
   mfrc522.PICC_HaltA();
   mfrc522.PCD_StopCrypto1();
