@@ -23,6 +23,11 @@ byte ssPins[] = {SS_1_PIN, SS_2_PIN};
 
 MFRC522 mfrc522[NR_OF_READERS];
 
+bool bp1 = false;
+bool wq = false; 
+bool bp1v = false;
+bool wqv = false;
+
 void setup() {
   // put your setup code here, to run once:
 
@@ -50,7 +55,81 @@ void loop() {
       Serial.print(reader);
 
       Serial.print(F(": Card UID: "));
+      String content = "";
+
+      for (byte i = 0; i < mfrc522[reader].uid.size; i++) {
+        Serial.print(mfrc522[reader].uid.uidByte[i] < 0x10 ? " 0" : " ");
+        Serial.print(mfrc522[reader].uid.uidByte[i], HEX);
+        content.concat(String(mfrc522[reader].uid.uidByte[i] < 0x10 ? " 0" : " "));
+        content.concat(String(mfrc522[reader].uid.uidByte[i], HEX));
+      }
+
+      Serial.println();
+      Serial.print("Message: ");
+      content.toUpperCase();
+
+      if (content.substring(1) == "DB B5 B7 1C" && reader == 0) {
+        Serial.println("Black Pawn 1 - Present");
+        bp1 = true;
+      }
+
+      if (content.substring(1) == "9A 3D 67 15" && reader == 1) {
+        Serial.println("White Queen - Present");
+        wq = true;
+      }
+
+      mfrc522[reader].PICC_HaltA();
+      mfrc522[reader].PCD_StopCrypto1();
+    }
+  }
+
+  if (wq && bp1) {
+    delay(2000);
+   
+    for (uint8_t reader = 0; reader < NR_OF_READERS; reader++) {
       
+      String content = "";
+      
+      for (byte i = 0; i < mfrc522[reader].uid.size; i++) {
+        Serial.println("Reader: ", reader);
+        Serial.print(mfrc522[reader].uid.uidByte[i] < 0x10 ? " 0" : " ");
+        Serial.print(mfrc522[reader].uid.uidByte[i], HEX);
+        content.concat(String(mfrc522[reader].uid.uidByte[i] < 0x10 ? " 0" : " "));
+        content.concat(String(mfrc522[reader].uid.uidByte[i], HEX));
+      }
+
+      content.toUpperCase();
+
+      Serial.println();
+
+      if (content.substring(1) == "DB B5 B7 1C" && reader == 0) {
+        Serial.println("Black Pawn 1 - Verified");
+        bp1v = true;
+      }
+
+      if (content.substring(1) == "9A 3D 67 15" && reader == 1) {
+        Serial.println("White Queen - Verified");
+        wqv = true;
+      }
+
+      if (bp1v && wqv) {
+        Serial.println("Verification Complete");
+        wqv = false;
+        bp1v = false;
+        bp1 = false;
+        wq = false;
+      } 
+      else if (!(bp1v && wqv) && reader == (NR_OF_READERS - 1)) {
+        wqv = false;
+        bp1v = false;
+        bp1 = false;
+        wq = false;
+
+        Serial.println("Verification Failed");
+      }
+
+      mfrc522[reader].PICC_HaltA();
+      mfrc522[reader].PCD_StopCrypto1();
     }
   }
 }
