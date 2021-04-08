@@ -91,7 +91,7 @@ void loop() {
       String content = "";
       
       for (byte i = 0; i < mfrc522[reader].uid.size; i++) {
-        Serial.println("Reader: ", reader);
+        Serial.println("Reader: " + reader);
         Serial.print(mfrc522[reader].uid.uidByte[i] < 0x10 ? " 0" : " ");
         Serial.print(mfrc522[reader].uid.uidByte[i], HEX);
         content.concat(String(mfrc522[reader].uid.uidByte[i] < 0x10 ? " 0" : " "));
