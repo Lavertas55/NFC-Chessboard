@@ -11,14 +11,17 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
-  uint8_t buf[9];
+  uint8_t buf[4];
   uint8_t buflen = sizeof(buf);
 
   if (driver.recv(buf, &buflen)) {
-    Serial.println(driver.recv(buf, &buflen));
-    int i;
 
-    Serial.print("Message: ");
     Serial.println((char*)buf);
+    
+    if ((char*)buf == "open") {
+      int i;
+
+      Serial.println("Opening...");
+    }
   }
 }
