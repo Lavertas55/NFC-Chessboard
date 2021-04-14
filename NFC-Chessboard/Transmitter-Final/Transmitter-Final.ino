@@ -12,6 +12,7 @@
 
 #include <SPI.h>
 #include <MFRC522.h>
+#include <RH_ASK.h>
 
 #define RST_PIN     5
 #define SS_1_PIN    23
@@ -21,6 +22,7 @@
 
 byte ssPins[] = {SS_1_PIN, SS_2_PIN};
 
+RH_ASK driver;
 MFRC522 mfrc522[NR_OF_READERS];
 
 bool bp1 = false;
@@ -33,6 +35,8 @@ void setup() {
 
   Serial.begin(9600);
   while(!Serial);
+
+  if(!driver.init()) Serial.println("init failed");
 
   SPI.begin();
 
@@ -113,7 +117,12 @@ void loop() {
       }
 
       if (bp1v && wqv) {
-        Serial.println("Verification Complete");
+        Serial.println("Verified...");
+
+        const char *msg = "open";
+        driver.send((uint8_t *)msg, strlen(msg));
+        driver.waitPacketSent();
+        
         wqv = false;
         bp1v = false;
         bp1 = false;

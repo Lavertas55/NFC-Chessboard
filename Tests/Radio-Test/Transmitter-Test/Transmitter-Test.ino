@@ -8,7 +8,7 @@ void setup() {
   Serial.begin(9600);
   Serial.println("Serial init");
   
-  if (!driver.init()) Serial.println("inti failed");
+  if (!driver.init()) Serial.println("init failed");
 }
 
 void loop() {
