@@ -119,7 +119,7 @@ void loop() {
       if (bp1v && wqv) {
         Serial.println("Verified...");
 
-        const char *msg = "open";
+        const char* msg = "open";
         driver.send((uint8_t *)msg, strlen(msg));
         driver.waitPacketSent();
         
