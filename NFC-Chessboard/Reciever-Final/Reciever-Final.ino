@@ -15,6 +15,8 @@ void setup() {
   myservo.write(0);
 
   if (!driver.init()) Serial.println("init failed");
+
+  Serial.println("init done");
 }
 
 void loop() {
@@ -23,7 +25,7 @@ void loop() {
   uint8_t buflen = sizeof(buf);
 
   const char* msg = "open";
-
+  
   if (driver.recv(buf, &buflen)) {
     Serial.println((char*)buf);
 
