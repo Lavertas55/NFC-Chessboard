@@ -2,7 +2,7 @@
 #include <SPI.h>
 #include <Servo.h>
 
-Servo servo;
+Servo myservo;
 
 RH_ASK driver;
 
@@ -11,8 +11,8 @@ void setup() {
   Serial.begin(9600);
   while(!Serial);
 
-  servo.attach(5);
-  servo.write(0);
+  myservo.attach(5);
+  myservo.write(0);
 
   if (!driver.init()) Serial.println("init failed");
 }
@@ -29,9 +29,9 @@ void loop() {
 
     if (strcmp((char*)buf, msg) != 0) {
       Serial.println("Opening...");
-      servo.write(90);
+      myservo.write(90);
       delay(5000);
-      servo.write(0);
+      myservo.write(0);
     }
   }
 }
