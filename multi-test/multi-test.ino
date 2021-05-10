@@ -18,19 +18,17 @@
 #define SS_2_PIN    25
 
 #define NR_OF_READERS   2
+#define RETRY_TOLERANCE 5
 
 byte ssPins[] = {SS_1_PIN, SS_2_PIN};
+uint8_t control = 0x00;
 
 MFRC522 mfrc522[NR_OF_READERS];
 
-bool bp1 = false;
-bool wq = false; 
-bool bp1v = false;
-bool wqv = false;
+int CardDetected[NR_OF_READERS];
+
 
 void setup() {
-  // put your setup code here, to run once:
-
   Serial.begin(9600);
   while(!Serial);
 
@@ -42,94 +40,67 @@ void setup() {
     Serial.print(reader);
     Serial.print(F(": "));
     mfrc522[reader].PCD_DumpVersionToSerial();
+
+    CardDetected[reader] = 0;
+  }
+}
+
+
+void checkReader(int reader) {
+  bool RetryDetection=false;
+
+  for (int RetryIndex = 0; RetryIndex < RETRY_TOLERANCE; RetryIndex++){
+    control = 0;
+    for (int i = 0; i < 3; i++) {
+      if (!mfrc522[reader].PICC_IsNewCardPresent()) {
+      if (mfrc522[reader].PICC_ReadCardSerial()) {
+      control |= 0x16;
+      }
+        if (mfrc522[reader].PICC_ReadCardSerial()) {
+          control |= 0x16;    
+        }
+        control += 0x1;
+      }
+      control += 0x4;
+    }
+
+    if (control == 13 || control == 14) {
+      RetryDetection = true;
+    }
+
+    delay(50);
+  }
+
+  if(RetryDetection) {
+    String TestText = "Reader" + String(reader) + ": Card is still there";
+    Serial.println(TestText);
+  }
+
+  else {
+    String TestText = "Reader" + String(reader) + ": Card was removed!";
+    Serial.println(TestText);
+    CardDetected[reader] = 0;
   }
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
 
-  for (uint8_t reader = 0; reader < NR_OF_READERS; reader++) {
+  for (int reader = 0; reader < NR_OF_READERS; reader++) {
+    bool newCard = mfrc522[reader].PICC_IsNewCardPresent() || mfrc522[reader].PICC_ReadCardSerial();
 
-    if (mfrc522[reader].PICC_IsNewCardPresent() && mfrc522[reader].PICC_ReadCardSerial()) {
-      Serial.print(F("Reader "));
-      Serial.print(reader);
+    String TestText = "Reader" + String(reader) + " is waiting for tags...";
+    //Serial.println(TestText);
 
-      Serial.print(F(": Card UID: "));
-      String content = "";
-
-      for (byte i = 0; i < mfrc522[reader].uid.size; i++) {
-        Serial.print(mfrc522[reader].uid.uidByte[i] < 0x10 ? " 0" : " ");
-        Serial.print(mfrc522[reader].uid.uidByte[i], HEX);
-        content.concat(String(mfrc522[reader].uid.uidByte[i] < 0x10 ? " 0" : " "));
-        content.concat(String(mfrc522[reader].uid.uidByte[i], HEX));
-      }
-
-      Serial.println();
-      Serial.print("Message: ");
-      content.toUpperCase();
-
-      if (content.substring(1) == "DB B5 B7 1C" && reader == 0) {
-        Serial.println("Black Pawn 1 - Present");
-        bp1 = true;
-      }
-
-      if (content.substring(1) == "9A 3D 67 15" && reader == 1) {
-        Serial.println("White Queen - Present");
-        wq = true;
-      }
-
-      mfrc522[reader].PICC_HaltA();
-      mfrc522[reader].PCD_StopCrypto1();
+    if (newCard && CardDetected[reader] == 0) {
+      CardDetected[reader] = 1;
+      String TestText = "Reader" + String(reader) + ": new Card detected!";
+      Serial.println(TestText);
     }
-  }
-
-  if (wq && bp1) {
-    delay(2000);
-   
-    for (uint8_t reader = 0; reader < NR_OF_READERS; reader++) {
-      
-      String content = "";
-      
-      for (byte i = 0; i < mfrc522[reader].uid.size; i++) {
-        Serial.println("Reader: " + reader);
-        Serial.print(mfrc522[reader].uid.uidByte[i] < 0x10 ? " 0" : " ");
-        Serial.print(mfrc522[reader].uid.uidByte[i], HEX);
-        content.concat(String(mfrc522[reader].uid.uidByte[i] < 0x10 ? " 0" : " "));
-        content.concat(String(mfrc522[reader].uid.uidByte[i], HEX));
-      }
-
-      content.toUpperCase();
-
-      Serial.println();
-
-      if (content.substring(1) == "DB B5 B7 1C" && reader == 0) {
-        Serial.println("Black Pawn 1 - Verified");
-        bp1v = true;
-      }
-
-      if (content.substring(1) == "9A 3D 67 15" && reader == 1) {
-        Serial.println("White Queen - Verified");
-        wqv = true;
-      }
-
-      if (bp1v && wqv) {
-        Serial.println("Verification Complete");
-        wqv = false;
-        bp1v = false;
-        bp1 = false;
-        wq = false;
-      } 
-      else if (!(bp1v && wqv) && reader == (NR_OF_READERS - 1)) {
-        wqv = false;
-        bp1v = false;
-        bp1 = false;
-        wq = false;
-
-        Serial.println("Verification Failed");
-      }
-
-      mfrc522[reader].PICC_HaltA();
-      mfrc522[reader].PCD_StopCrypto1();
+    else if (CardDetected[reader] == 1) {
+      checkReader(reader);
     }
+
+    mfrc522[reader].PICC_HaltA();
+    mfrc522[reader].PCD_StopCrypto1();
   }
 }
